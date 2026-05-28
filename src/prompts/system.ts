@@ -1,3 +1,5 @@
+import type Groq from "groq-sdk";
+
 export const SYSTEM_PROMPT = `Você é a Assistente Virtual do Rancho Bela Vista, um espaço de eventos exclusivo em São Paulo.
 
 ## Sua missão
@@ -71,59 +73,65 @@ Quando o cliente demonstra interesse mas hesita, mencione:
 - Que a data só é confirmada após o sinal
 `;
 
-export const TOOLS = [
+export const TOOLS: Groq.Chat.ChatCompletionTool[] = [
   {
-    name: "check_calendar_availability",
-    description:
-      "Verifica disponibilidade no calendário de reservas para um período. Use sempre que o cliente perguntar sobre uma data específica ou período.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        start_date: {
-          type: "string",
-          description: "Data inicial no formato YYYY-MM-DD",
-        },
-        end_date: {
-          type: "string",
-          description:
-            "Data final no formato YYYY-MM-DD (use a mesma data para consulta de dia único)",
-        },
-      },
-      required: ["start_date", "end_date"],
-    },
-  },
-  {
-    name: "escalate_to_human",
-    description:
-      "Encaminha o lead qualificado para o time comercial. Use quando o cliente tiver data, tipo de evento, número de convidados e reconheceu os preços.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        lead_profile: {
-          type: "object",
-          properties: {
-            desired_date: {
-              type: "string",
-              description: "Data ou período desejado pelo cliente",
-            },
-            event_type: {
-              type: "string",
-              description: "Tipo de evento",
-            },
-            guest_count: {
-              type: "number",
-              description: "Número estimado de convidados",
-            },
-            summary: {
-              type: "string",
-              description:
-                "Resumo da conversa em 2-3 frases para o time comercial",
-            },
+    type: "function",
+    function: {
+      name: "check_calendar_availability",
+      description:
+        "Verifica disponibilidade no calendário de reservas para um período. Use sempre que o cliente perguntar sobre uma data específica ou período.",
+      parameters: {
+        type: "object",
+        properties: {
+          start_date: {
+            type: "string",
+            description: "Data inicial no formato YYYY-MM-DD",
           },
-          required: ["desired_date", "event_type", "guest_count", "summary"],
+          end_date: {
+            type: "string",
+            description:
+              "Data final no formato YYYY-MM-DD (use a mesma data para consulta de dia único)",
+          },
         },
+        required: ["start_date", "end_date"],
       },
-      required: ["lead_profile"],
     },
   },
-] as const;
+  {
+    type: "function",
+    function: {
+      name: "escalate_to_human",
+      description:
+        "Encaminha o lead qualificado para o time comercial. Use quando o cliente tiver data, tipo de evento, número de convidados e reconheceu os preços.",
+      parameters: {
+        type: "object",
+        properties: {
+          lead_profile: {
+            type: "object",
+            properties: {
+              desired_date: {
+                type: "string",
+                description: "Data ou período desejado pelo cliente",
+              },
+              event_type: {
+                type: "string",
+                description: "Tipo de evento",
+              },
+              guest_count: {
+                type: "number",
+                description: "Número estimado de convidados",
+              },
+              summary: {
+                type: "string",
+                description:
+                  "Resumo da conversa em 2-3 frases para o time comercial",
+              },
+            },
+            required: ["desired_date", "event_type", "guest_count", "summary"],
+          },
+        },
+        required: ["lead_profile"],
+      },
+    },
+  },
+];

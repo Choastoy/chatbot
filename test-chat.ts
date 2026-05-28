@@ -1,92 +1,85 @@
 import readline from "readline";
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 import dotenv from "dotenv";
 import { SYSTEM_PROMPT, TOOLS } from "./src/prompts/system.js";
+import type { ChatMessage, CheckCalendarArgs, EscalateToHumanArgs } from "./src/types/index.js";
 
 dotenv.config();
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const messages: Anthropic.MessageParam[] = [];
+const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const sessionMessages: ChatMessage[] = [];
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-console.log("\n=== Couch AI — Teste Local ===");
+console.log("\n=== Couch AI — Teste Local (Groq / Llama 3.3 70B) ===");
 console.log("Simulando conversa de WhatsApp (sem envio real)");
 console.log("Digite 'sair' para encerrar\n");
 
 async function chat(userInput: string): Promise<void> {
-  messages.push({ role: "user", content: userInput });
+  sessionMessages.push({ role: "user", content: userInput });
 
-  let response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+  const messages = (): ChatMessage[] => [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...sessionMessages,
+  ];
+
+  let response = await client.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
     max_tokens: 1024,
-    system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    tools: TOOLS as unknown as Anthropic.Tool[],
-    messages,
+    tools: TOOLS,
+    tool_choice: "auto",
+    messages: messages(),
   });
 
-  while (response.stop_reason === "tool_use") {
-    const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-    );
+  while (response.choices[0].finish_reason === "tool_calls") {
+    const assistantMessage = response.choices[0].message;
+    sessionMessages.push(assistantMessage as ChatMessage);
 
-    messages.push({ role: "assistant", content: response.content });
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-    for (const toolUse of toolUseBlocks) {
+    for (const toolCall of assistantMessage.tool_calls ?? []) {
+      const args = JSON.parse(toolCall.function.arguments);
       let result: string;
 
-      if (toolUse.name === "check_calendar_availability") {
-        const args = toolUse.input as { start_date: string; end_date: string };
-        // Mock calendar: weekends in June/July 2026 are booked, rest free
-        const start = new Date(args.start_date);
-        const end = new Date(args.end_date);
-        const lines: string[] = ["Disponibilidade (mock):"];
-        const cur = new Date(start);
+      if (toolCall.function.name === "check_calendar_availability") {
+        const { start_date, end_date } = args as CheckCalendarArgs;
+        // Mock calendar: sábados de junho e domingos de julho 2026 reservados
+        const cur = new Date(start_date);
+        const end = new Date(end_date);
+        const lines = ["Disponibilidade (mock):"];
         while (cur <= end) {
           const day = cur.getDay();
           const dateStr = cur.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
           const booked = (day === 6 && cur.getMonth() === 5) || (day === 0 && cur.getMonth() === 6);
-          lines.push(`${booked ? "❌" : "✅"} ${dateStr}${booked ? " (reservado)" : " (disponível)"}`);
+          lines.push(`${booked ? "❌" : "✅"} ${dateStr}${booked ? " (reservado)" : ""}`);
           cur.setDate(cur.getDate() + 1);
         }
         result = lines.join("\n");
-        console.log(`\n[🔧 FERRAMENTA: check_calendar_availability]\n${result}\n`);
-      } else if (toolUse.name === "escalate_to_human") {
-        const args = toolUse.input as { lead_profile: { desired_date: string; event_type: string; guest_count: number; summary: string } };
-        const lp = args.lead_profile;
+        console.log(`\n[🔧 check_calendar_availability]\n${result}\n`);
+      } else if (toolCall.function.name === "escalate_to_human") {
+        const { lead_profile } = args as EscalateToHumanArgs;
         result = "Lead escalado com sucesso.";
-        console.log(`\n[🚨 LEAD QUALIFICADO — notificando dono]`);
-        console.log(`   Data: ${lp.desired_date}`);
-        console.log(`   Evento: ${lp.event_type}`);
-        console.log(`   Convidados: ${lp.guest_count}`);
-        console.log(`   Resumo: ${lp.summary}\n`);
+        console.log("\n[🚨 LEAD QUALIFICADO — notificaria o dono via WhatsApp]");
+        console.log(`   Data: ${lead_profile.desired_date}`);
+        console.log(`   Evento: ${lead_profile.event_type}`);
+        console.log(`   Convidados: ${lead_profile.guest_count}`);
+        console.log(`   Resumo: ${lead_profile.summary}\n`);
       } else {
         result = "Ferramenta desconhecida.";
       }
 
-      toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: result });
+      sessionMessages.push({ role: "tool", tool_call_id: toolCall.id, content: result });
     }
 
-    messages.push({ role: "user", content: toolResults });
-
-    response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+    response = await client.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
       max_tokens: 1024,
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-      tools: TOOLS as unknown as Anthropic.Tool[],
-      messages,
+      tools: TOOLS,
+      tool_choice: "auto",
+      messages: messages(),
     });
   }
 
-  const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
-  const reply = textBlock?.text ?? "Sem resposta.";
-
-  messages.push({ role: "assistant", content: reply });
+  const reply = response.choices[0].message.content ?? "Sem resposta.";
+  sessionMessages.push({ role: "assistant", content: reply });
   console.log(`\nBot: ${reply}\n`);
 }
 

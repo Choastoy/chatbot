@@ -16,9 +16,9 @@ export const config = {
     webhookVerifyToken: required("WHATSAPP_WEBHOOK_VERIFY_TOKEN"),
   },
 
-  anthropic: {
-    apiKey: required("ANTHROPIC_API_KEY"),
-    model: "claude-sonnet-4-6" as const,
+  groq: {
+    apiKey: required("GROQ_API_KEY"),
+    model: "llama-3.3-70b-versatile" as const,
   },
 
   google: {

@@ -1,8 +1,10 @@
-import type Anthropic from "@anthropic-ai/sdk";
+import type Groq from "groq-sdk";
+
+export type ChatMessage = Groq.Chat.ChatCompletionMessageParam;
 
 export interface ConversationSession {
   phoneNumber: string;
-  messages: Anthropic.MessageParam[];
+  messages: ChatMessage[];
   leadProfile: LeadProfile;
   escalated: boolean;
   lastActivity: number;

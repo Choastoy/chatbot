@@ -1,5 +1,5 @@
 import { getOrCreateSession, saveSession } from "../services/session.js";
-import { processMessage } from "../services/anthropic.js";
+import { processMessage } from "../services/ai.js";
 import { sendTextMessage, markMessageAsRead } from "../services/whatsapp.js";
 
 export async function handleIncomingMessage(
