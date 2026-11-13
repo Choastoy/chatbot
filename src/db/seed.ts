@@ -1,0 +1,236 @@
+import type { DB } from "./types.js";
+
+/**
+ * Dados iniciais de exemplo. Tudo aqui é editável pelo painel (/admin).
+ * Troque pelo conteúdo real do seu bar antes de colocar no ar.
+ */
+export function seed(): DB {
+  let ordem = 0;
+  const item = (
+    categoriaId: string,
+    nome: string,
+    descricao: string,
+    preco: number,
+    extra: Partial<{ tags: string[]; destaque: boolean; precoObs: string }> = {}
+  ) => ({
+    id: `it_${++ordem}`,
+    categoriaId,
+    nome,
+    descricao,
+    preco,
+    precoObs: extra.precoObs ?? "",
+    tags: extra.tags ?? [],
+    disponivel: true,
+    destaque: extra.destaque ?? false,
+    ordem,
+  });
+
+  return {
+    negocio: {
+      nome: "Bar Esquina",
+      segmento: "bar com cozinha mineira e música ao vivo",
+      slogan: "Comida de boteco, samba e cerveja gelada.",
+      endereco: "Rua Exemplo, 123",
+      bairroCidade: "Savassi · Belo Horizonte/MG",
+      telefone: "(31) 90000-0000",
+      instagram: "@barexemplo",
+      horarioFuncionamento:
+        "Terça a quinta: 17h às 00h\nSexta e sábado: 17h às 02h\nDomingo: 12h às 18h\nSegunda: fechado",
+      couvert: "Couvert artístico de R$ 15 por pessoa nos dias de música ao vivo (sexta e sábado após 20h).",
+      estacionamento: "Estacionamento conveniado na esquina (R$ 20 o período, com selo do bar).",
+      formasPagamento: "Pix, débito, crédito e VR/VA. Não aceitamos cheque.",
+      petFriendly: "Sim, na área externa.",
+      acessibilidade: "Entrada sem degraus e banheiro adaptado.",
+      linkAvaliacaoGoogle: "https://g.page/r/SEU-LINK/review",
+      tomDeVoz:
+        "Acolhedor, leve e mineiro na medida — como um garçom querido que conhece o cliente. Frases curtas, sem formalidade excessiva.",
+      observacoesInternas:
+        "Não prometemos mesa específica (varanda/salão), apenas anotamos a preferência. Aniversariante com reserva ganha uma sobremesa. Não há rolha liberada.",
+    },
+    faq: [
+      { id: "faq_1", pergunta: "Vocês aceitam reserva?", resposta: "Sim! Fazemos reserva aqui mesmo pelo chat, para até 10 pessoas na hora. Grupos maiores passam pelo nosso time de eventos.", ativo: true },
+      { id: "faq_2", pergunta: "Pode levar bolo de aniversário?", resposta: "Pode sim, sem taxa. Avise na reserva que guardamos na geladeira.", ativo: true },
+      { id: "faq_3", pergunta: "Tem opção vegana?", resposta: "Temos! Mandioca frita, cogumelos na chapa e o PF vegano do dia.", ativo: true },
+      { id: "faq_4", pergunta: "Tem área para crianças?", resposta: "Não temos espaço kids, mas crianças são bem-vindas, especialmente no almoço de domingo.", ativo: true },
+    ],
+    programacao: [
+      { id: "pg_1", diaSemana: 4, horario: "19h", titulo: "Quinta do Chopp", descricao: "Chopp em dobro até as 21h.", ativo: true },
+      { id: "pg_2", diaSemana: 5, horario: "20h", titulo: "Samba de Sexta", descricao: "Roda de samba ao vivo com o grupo da casa.", ativo: true },
+      { id: "pg_3", diaSemana: 6, horario: "20h", titulo: "MPB ao vivo", descricao: "Voz e violão com clássicos da MPB.", ativo: true },
+      { id: "pg_4", diaSemana: 0, horario: "12h", titulo: "Feijoada de Domingo", descricao: "Feijoada completa servida até as 16h.", ativo: true },
+    ],
+    categorias: [
+      { id: "cat_petiscos", nome: "Petiscos", descricao: "Para dividir com a mesa", ordem: 1 },
+      { id: "cat_pratos", nome: "Pratos", descricao: "Servem bem uma pessoa", ordem: 2 },
+      { id: "cat_chopp", nome: "Chopp & Cervejas", descricao: "Sempre trincando", ordem: 3 },
+      { id: "cat_drinks", nome: "Drinks", descricao: "Clássicos e autorais", ordem: 4 },
+      { id: "cat_sem_alcool", nome: "Sem álcool", descricao: "", ordem: 5 },
+      { id: "cat_sobremesas", nome: "Sobremesas", descricao: "", ordem: 6 },
+    ],
+    itens: [
+      item("cat_petiscos", "Torresmo de rolo", "Pururuca por fora, macio por dentro. Acompanha limão.", 42, { destaque: true, tags: ["chef"] }),
+      item("cat_petiscos", "Pão de queijo recheado", "6 unidades com linguiça artesanal e requeijão.", 34),
+      item("cat_petiscos", "Bolinho de feijoada", "8 unidades com couve crocante e geleia de pimenta.", 39, { tags: ["picante"] }),
+      item("cat_petiscos", "Mandioca frita", "Porção com manteiga de garrafa.", 29, { tags: ["vegetariano"] }),
+      item("cat_petiscos", "Cogumelos na chapa", "Shimeji e shiitake com shoyu e gergelim.", 38, { tags: ["vegano"] }),
+      item("cat_pratos", "Frango com quiabo", "Com angu cremoso e arroz.", 52),
+      item("cat_pratos", "Feijoada completa", "Domingos. Serve 2 pessoas.", 119, { destaque: true, precoObs: "Individual R$ 64" }),
+      item("cat_pratos", "PF vegano do dia", "Pergunte ao garçom a composição de hoje.", 45, { tags: ["vegano"] }),
+      item("cat_chopp", "Chopp pilsen 300ml", "Tirado na pressão certa.", 12.9),
+      item("cat_chopp", "Chopp IPA 400ml", "Cervejaria local.", 22),
+      item("cat_chopp", "Cerveja 600ml", "Original, Serra Malte ou Heineken.", 18),
+      item("cat_drinks", "Caipirinha de cachaça mineira", "Limão, tangerina ou maracujá.", 26, { destaque: true }),
+      item("cat_drinks", "Gin tônica da casa", "Gin, tônica, especiarias e cítricos.", 34),
+      item("cat_drinks", "Rabo de galo", "Cachaça, vermute e Cynar.", 28, { tags: ["novo"] }),
+      item("cat_sem_alcool", "Limonada suíça", "", 14, { tags: ["vegano"] }),
+      item("cat_sem_alcool", "Refrigerante lata", "", 7),
+      item("cat_sobremesas", "Doce de leite com queijo", "Doce de leite de Viçosa e queijo canastra.", 24),
+      item("cat_sobremesas", "Pudim da vó", "", 19),
+    ],
+    reservaConfig: {
+      ativo: true,
+      horarios: {
+        "0": ["12:00", "13:30"],
+        "1": [],
+        "2": ["18:00", "20:00"],
+        "3": ["18:00", "20:00"],
+        "4": ["18:00", "20:00"],
+        "5": ["18:00", "19:30", "21:00"],
+        "6": ["18:00", "19:30", "21:00"],
+      },
+      capacidadePorHorario: 40,
+      maxPessoasAutoConfirma: 10,
+      antecedenciaMinimaMin: 60,
+      toleranciaAtrasoMin: 15,
+      diasMaxAntecedencia: 45,
+    },
+    reservas: [],
+    clientes: [],
+    leads: [],
+    fluxos: [
+      {
+        id: "aniversario_grupo",
+        nome: "Aniversário e grupos grandes",
+        ativo: true,
+        gatilho:
+          "Cliente quer reservar para mais pessoas do que o limite de auto confirmação, ou menciona aniversário/confraternização com muitos convidados.",
+        objetivo: "Garantir a data do grupo e encaminhar para o gerente fechar a reserva especial.",
+        campos: [
+          { id: "nome", pergunta: "Nome de quem está organizando", peso: 10, obrigatorio: true },
+          { id: "data", pergunta: "Data desejada", peso: 20, obrigatorio: true },
+          { id: "pessoas", pergunta: "Número aproximado de convidados", peso: 20, obrigatorio: true },
+          { id: "ocasiao", pergunta: "Qual a ocasião (aniversário, despedida, confraternização)", peso: 10, obrigatorio: false },
+          { id: "preferencia_espaco", pergunta: "Preferência de espaço (varanda, salão)", peso: 5, obrigatorio: false },
+          { id: "interesse_cardapio_fechado", pergunta: "Se tem interesse em pacote de petiscos/open chopp", peso: 15, obrigatorio: false },
+        ],
+        regrasBonus: [
+          { campo: "pessoas", condicao: ">=20", pontos: 20, descricao: "Grupo com 20+ pessoas" },
+          { campo: "interesse_cardapio_fechado", condicao: "contém:sim", pontos: 10, descricao: "Quer pacote fechado" },
+        ],
+        limiarMorno: 40,
+        limiarQuente: 70,
+        mensagemFinal:
+          "Anotei tudo! Nosso gerente vai te chamar para confirmar o espaço e as opções de pacote para o grupo.",
+        transferirSeQuente: true,
+      },
+      {
+        id: "evento_fechado",
+        nome: "Evento fechado / Buyout",
+        ativo: true,
+        gatilho: "Cliente quer fechar o bar (ou uma área exclusiva) para um evento privado.",
+        objetivo: "Qualificar orçamento e data para proposta de evento fechado.",
+        campos: [
+          { id: "nome", pergunta: "Nome e empresa (se houver)", peso: 10, obrigatorio: true },
+          { id: "data", pergunta: "Data e horário do evento", peso: 20, obrigatorio: true },
+          { id: "pessoas", pergunta: "Número de convidados", peso: 20, obrigatorio: true },
+          { id: "tipo_evento", pergunta: "Tipo de evento", peso: 10, obrigatorio: true },
+          { id: "orcamento", pergunta: "Faixa de investimento prevista", peso: 25, obrigatorio: false },
+          { id: "email", pergunta: "E-mail para enviar a proposta", peso: 10, obrigatorio: false },
+        ],
+        regrasBonus: [
+          { campo: "nome", condicao: "contém:empresa", pontos: 10, descricao: "Evento corporativo" },
+          { campo: "orcamento", condicao: "preenchido", pontos: 10, descricao: "Informou orçamento" },
+        ],
+        limiarMorno: 40,
+        limiarQuente: 75,
+        mensagemFinal: "Perfeito! Vou passar para o nosso time de eventos montar uma proposta sob medida.",
+        transferirSeQuente: true,
+      },
+      {
+        id: "catering",
+        nome: "Catering / Delivery para eventos",
+        ativo: true,
+        gatilho: "Cliente pede petiscos/comida para levar a um evento externo, encomenda grande ou catering.",
+        objetivo: "Coletar dados da encomenda para orçamento de catering.",
+        campos: [
+          { id: "nome", pergunta: "Nome", peso: 10, obrigatorio: true },
+          { id: "data", pergunta: "Data e horário da entrega", peso: 20, obrigatorio: true },
+          { id: "pessoas", pergunta: "Para quantas pessoas", peso: 20, obrigatorio: true },
+          { id: "local", pergunta: "Bairro/cidade de entrega", peso: 15, obrigatorio: true },
+          { id: "itens_interesse", pergunta: "Itens do cardápio de interesse", peso: 15, obrigatorio: false },
+        ],
+        regrasBonus: [{ campo: "pessoas", condicao: ">=30", pontos: 20, descricao: "Encomenda grande" }],
+        limiarMorno: 40,
+        limiarQuente: 70,
+        mensagemFinal: "Ótimo! Nossa equipe vai montar o orçamento e te envia em breve.",
+        transferirSeQuente: true,
+      },
+    ],
+    automacoes: [
+      {
+        id: "lembrete_reserva",
+        nome: "Lembrete de reserva",
+        descricao: "Enviado algumas horas antes da reserva para reduzir no-show.",
+        ativo: true,
+        mensagem:
+          "Oi, {nome}! Passando para lembrar da sua reserva hoje às {horario} para {pessoas} pessoas no {bar}. Te esperamos! Se precisar mudar algo, é só responder aqui.",
+        templateWhatsApp: "",
+        horario: "",
+        horasAntes: 3,
+      },
+      {
+        id: "avaliacao_google",
+        nome: "Pedido de avaliação no Google",
+        descricao: "No dia seguinte à visita, pede uma avaliação no Google.",
+        ativo: true,
+        mensagem:
+          "Oi, {nome}! Obrigado por ter vindo ao {bar} ontem 💛 Se curtiu, uma avaliação no Google ajuda demais a gente: {link_avaliacao}",
+        templateWhatsApp: "",
+        horario: "12:00",
+      },
+      {
+        id: "aniversario",
+        nome: "Mensagem de aniversário",
+        descricao: "Parabeniza o cliente no dia do aniversário e convida para comemorar.",
+        ativo: true,
+        mensagem:
+          "Feliz aniversário, {nome}! 🎉 Comemora no {bar}? Reservando este mês, a sobremesa do aniversariante é por nossa conta.",
+        templateWhatsApp: "",
+        horario: "10:00",
+      },
+      {
+        id: "programacao_semanal",
+        nome: "Programação da semana",
+        descricao: "Aviso semanal para clientes que aceitaram receber novidades.",
+        ativo: false,
+        mensagem: "Oi, {nome}! Olha o que vem por aí no {bar}:\n{programacao}\nQuer garantir sua mesa? É só responder aqui.",
+        templateWhatsApp: "",
+        horario: "17:00",
+        diaSemana: 4,
+      },
+      {
+        id: "reativacao",
+        nome: "Reativação de clientes sumidos",
+        descricao: "Convida de volta quem não aparece há um tempo.",
+        ativo: false,
+        mensagem: "Oi, {nome}! Faz tempo que você não aparece no {bar}… Bateu saudade! Essa semana tem {programacao_curta}. Bora?",
+        templateWhatsApp: "",
+        horario: "16:00",
+        diasSemVisita: 45,
+      },
+    ],
+    conversas: {},
+    envios: [],
+    processedMessageIds: [],
+  };
+}

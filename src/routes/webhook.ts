@@ -1,56 +1,107 @@
 import { Router, type Request, type Response } from "express";
 import { config } from "../config.js";
-import { handleIncomingMessage } from "../handlers/message.js";
-import type {
-  WhatsAppWebhookPayload,
-  WhatsAppTextMessage,
-} from "../types/index.js";
+import { assinaturaValida, instagramNome, whatsappMarcarLida } from "../channels/meta.js";
+import { getDb, persist } from "../db/store.js";
+import { jaProcessado, receberMensagem } from "../services/conversation.js";
 
 export const webhookRouter = Router();
 
-// GET: webhook verification challenge from Meta
-webhookRouter.get("/webhook", (req: Request, res: Response) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+type RawReq = Request & { rawBody?: Buffer };
 
-  if (mode === "subscribe" && token === config.whatsapp.webhookVerifyToken) {
-    res.status(200).send(challenge);
+// Verificação do webhook (mesmo endpoint para WhatsApp e Instagram)
+webhookRouter.get("/webhook", (req: Request, res: Response) => {
+  if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === config.meta.webhookVerifyToken) {
+    res.status(200).send(req.query["hub.challenge"]);
   } else {
     res.sendStatus(403);
   }
 });
 
-// POST: incoming messages from WhatsApp
-webhookRouter.post("/webhook", (req: Request, res: Response) => {
-  // Always acknowledge immediately — Meta requires 200 within 5 seconds
+webhookRouter.post("/webhook", (req: RawReq, res: Response) => {
+  if (!assinaturaValida(req.rawBody, req.header("x-hub-signature-256"))) {
+    res.sendStatus(401);
+    return;
+  }
+  // A Meta exige 200 rápido; o processamento segue em segundo plano
   res.sendStatus(200);
 
-  const payload = req.body as WhatsAppWebhookPayload;
-
-  if (payload.object !== "whatsapp_business_account") return;
-
-  for (const entry of payload.entry ?? []) {
-    for (const change of entry.changes ?? []) {
-      const messages = change.value?.messages;
-      if (!messages?.length) continue;
-
-      for (const message of messages) {
-        if (!isTextMessage(message)) continue;
-
-        handleIncomingMessage(message.from, message.id, message.text.body).catch(
-          (err) => console.error("Unhandled error in message handler:", err)
-        );
-      }
-    }
+  const body = req.body as { object?: string; entry?: any[] };
+  try {
+    if (body.object === "whatsapp_business_account") processarWhatsApp(body.entry ?? []);
+    else if (body.object === "instagram" || body.object === "page") processarInstagram(body.entry ?? []);
+  } catch (err) {
+    console.error("Payload de webhook inesperado:", err);
   }
 });
 
-function isTextMessage(msg: unknown): msg is WhatsAppTextMessage {
-  return (
-    typeof msg === "object" &&
-    msg !== null &&
-    (msg as WhatsAppTextMessage).type === "text" &&
-    typeof (msg as WhatsAppTextMessage).text?.body === "string"
-  );
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function processarWhatsApp(entries: any[]) {
+  for (const entry of entries) {
+    for (const change of entry.changes ?? []) {
+      const value = change.value ?? {};
+      const nomes = new Map<string, string>(
+        (value.contacts ?? []).map((c: any) => [c.wa_id, c.profile?.name ?? ""])
+      );
+      for (const m of value.messages ?? []) {
+        if (jaProcessado(m.id)) continue;
+        const texto = textoWhatsApp(m);
+        if (!texto) continue;
+        whatsappMarcarLida(m.id);
+        receberMensagem({ canal: "whatsapp", contatoId: m.from, texto, nomePerfil: nomes.get(m.from) });
+      }
+    }
+  }
+}
+
+function textoWhatsApp(m: any): string | null {
+  switch (m.type) {
+    case "text":
+      return m.text?.body ?? null;
+    case "button":
+      return m.button?.text ?? null;
+    case "interactive":
+      return m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? null;
+    case "location":
+      return `[cliente enviou uma localização: ${m.location?.latitude}, ${m.location?.longitude}]`;
+    case "audio":
+    case "image":
+    case "video":
+    case "sticker":
+    case "document":
+      return `[cliente enviou ${m.type === "audio" ? "um áudio" : m.type === "image" ? "uma imagem" : `um(a) ${m.type}`}${m[m.type]?.caption ? ` com legenda: "${m[m.type].caption}"` : ""}]`;
+    case "reaction":
+      return null;
+    default:
+      return null;
+  }
+}
+
+function processarInstagram(entries: any[]) {
+  for (const entry of entries) {
+    for (const ev of entry.messaging ?? []) {
+      const m = ev.message;
+      if (!m || m.is_echo || m.is_deleted) continue;
+      if (jaProcessado(m.mid)) continue;
+      let texto: string | null = m.text ?? null;
+      if (!texto && m.attachments?.length) {
+        const tipo = m.attachments[0].type;
+        texto = tipo === "story_mention" ? "[cliente mencionou a casa em um story]" : `[cliente enviou ${tipo}]`;
+      }
+      if (m.reply_to?.story && texto) texto = `[resposta a um story] ${texto}`;
+      if (!texto) continue;
+      const senderId: string = ev.sender.id;
+      receberMensagem({ canal: "instagram", contatoId: senderId, texto });
+      // Nome do perfil em paralelo, sem atrasar nem reordenar mensagens
+      const conhecido = getDb().clientes.some((c) => c.canal === "instagram" && c.contatoId === senderId && c.nome);
+      if (!conhecido) {
+        instagramNome(senderId).then((nome) => {
+          const c = getDb().clientes.find((x) => x.canal === "instagram" && x.contatoId === senderId);
+          if (c && !c.nome && nome) {
+            c.nome = nome;
+            persist();
+          }
+        });
+      }
+    }
+  }
 }
